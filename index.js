@@ -1,8 +1,12 @@
 const Sequelize = require('sequelize');
-const Request = require('request');
+const Request = require('request-promise');
 const Express = require('express');
+const Moment = require('moment');
+const Cors = require('cors');
 
 const App = Express();
+
+App.use(Cors());
 
 const sequelize = new Sequelize('mysql://root@localhost:3306/review_syncer', {
 	pool: {
@@ -12,10 +16,16 @@ const sequelize = new Sequelize('mysql://root@localhost:3306/review_syncer', {
 		idle: 10000
 	},
 	sync: { force: false },
-	underscored: true,
-	dialectOptions: {
-		collate: 'utf8_general_ci'
-	}
+	operatorsAliases: false,
+	define : {
+		timestamps: false,
+		underscored: true,
+		charset: 'utf8',
+	    dialectOptions: {
+	      collate: 'utf8_general_ci'
+	    }
+	},
+	logging: false
 });
 
 const Review = sequelize.define('shopify_app_reviews', {
@@ -44,28 +54,88 @@ const Review = sequelize.define('shopify_app_reviews', {
 		allowNull: true,
 		field: 'previous_star_rating'
 	},
-	updated_at: {
-		type: Sequelize.DATE,
-		allowNull: true,
-		field: 'updated_at'
-	},
 	created_at: {
 		type: Sequelize.DATE,
-		allowNull: true,
-		field: 'created_at'
+		allowNull: true
+	},
+	updated_at: {
+		type: Sequelize.DATE,
+		allowNull: true
 	}
 });
 
-app.get('/api', (req, res) => {
+const reviewBuilder = (data, app_slug) => {
+	let return_data = {
+		shopify_domain: data.shop_domain,
+		app_slug: app_slug,
+		star_rating: data.star_rating,
+		previous_star_rating: data.star_rating,
+		created_at : Moment( data.created_at ).format('YYYY-MM-DD HH:mm:ss'),
+		updated_at : Moment(Date.now()).format('YYYY-MM-DD HH:mm:ss')
+	};
+	return return_data;
+}
 
+App.get('/shopify/:app_slug/reviews', (req, res) => {
+
+	Request({
+	    method: 'GET',
+	    uri: `https://apps.shopify.com/${req.params.app_slug}/reviews.json`,
+	    json: true
+	}).then((parsed_body) => {
+		let reviews = parsed_body.reviews.map((parsed_review) => {
+			return reviewBuilder(parsed_review, req.params.app_slug);
+		});
+
+		for (let review of reviews) {
+
+			if(review === undefined || review.shopify_domain === undefined) continue;
+
+			const whereclause = {where: {app_slug: req.params.app_slug , shopify_domain: review.shopify_domain } , defaults: review};
+
+			Review.findOrCreate(whereclause)
+				.spread((stored_review, created) => {
+
+					let plain_data = stored_review.get({
+						plain: true
+					});
+
+					if(created === false && plain_data.star_rating !== review.star_rating ) {
+
+						// Keeping the old star rating
+						plain_data.previous_star_rating = review.star_rating;
+						// removing the created_at
+						if (review.created_at) delete review.created_at;
+
+						let object_assigned = Object.assign(plain_data, review);
+
+						object_assigned.updated_at = Moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
+
+						Review.update( object_assigned, whereclause ).then(console.log).catch(console.log);
+					}
+				});
+		}
+
+		res.send();
+	});
 });
 
-sequelize.sync().then(() => {
-	Review.create({
-		shopify_domain: "Cookie",
-		app_slug: "Cookie"
-	}).then(console.log);	
+App.get('/api/:app_slug/reviews', (req, res) => {
+
+	const whereclause = {where: {app_slug: req.params.app_slug}};
+
+	Review.findAll(whereclause)
+		.then((all) => {
+			res.send(all);
+		});
 });
 
-app.listen(3000, () => console.log('Example app listening on port 3000!'))
+// sequelize.sync().then(() => {
+// 	Review.create({
+// 		shopify_domain: "Cookie",
+// 		app_slug: "Cookie"
+// 	}).then(console.log);	
+// });
+
+App.listen(3000, () => console.log('Example app listening on port 3000!'))
 
