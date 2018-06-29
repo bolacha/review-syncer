@@ -76,6 +76,50 @@ const reviewBuilder = (data, app_slug) => {
 	return return_data;
 }
 
+const getReviews = (app_slug) => {
+	return new Promise((resolve, reject) => {
+
+		Request({
+		    method: 'GET',
+		    uri: `https://apps.shopify.com/${req.params.app_slug}/reviews.json`,
+		    json: true
+		}).then((parsed_body) => {
+			let reviews = parsed_body.reviews.map((parsed_review) => {
+				return reviewBuilder(parsed_review, req.params.app_slug);
+			});
+
+			for (let review of reviews) {
+
+				if(review === undefined || review.shopify_domain === undefined) continue;
+
+				const whereclause = {where: {app_slug: req.params.app_slug , shopify_domain: review.shopify_domain } , defaults: review};
+
+				Review.findOrCreate(whereclause)
+					.spread((stored_review, created) => {
+
+						let plain_data = stored_review.get({
+							plain: true
+						});
+
+						if(created === false && plain_data.star_rating !== review.star_rating ) {
+
+							// Keeping the old star rating
+							plain_data.previous_star_rating = review.star_rating;
+							// removing the created_at
+							if (review.created_at) delete review.created_at;
+
+							let object_assigned = Object.assign(plain_data, review);
+
+							object_assigned.updated_at = Moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
+
+							Review.update( object_assigned, whereclause ).then(console.log).catch(console.log);
+						}
+					});
+			}
+		}).then(resolve).catch(reject);
+	})
+}
+
 App.get('/shopify/:app_slug/reviews', (req, res) => {
 
 	Request({
@@ -116,8 +160,8 @@ App.get('/shopify/:app_slug/reviews', (req, res) => {
 				});
 		}
 
-		res.send();
-	});
+		return true;
+	}).then();
 });
 
 App.get('/api/:app_slug/reviews', (req, res) => {

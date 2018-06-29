@@ -122,15 +122,18 @@ class PaginatedList extends React.Component {
     super(props);
 
     this.state = {
-      shopdomain: props.shopdomain,
-      appslug: props.appslug,
       data: [],
       page: 0,
       rowsPerPage: 5,
+      appslug: 'product-upsell'
     };
   }
-  
-  componentWillMount() {
+
+  componentDidMount() {
+    this.getReviews(this.state.appslug);
+  }
+
+  getReviews(app_slug) {
     fetch(`http://localhost:3000/api/${this.state.appslug}/reviews`).then((reviews) => {
         return reviews.json();
     }).then((reviews) => {
