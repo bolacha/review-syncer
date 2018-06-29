@@ -1,0 +1,35 @@
+{
+  "name": "review-syncer",
+  "version": "1.0.0",
+  "description": "Review Syncer it\\'s an amazing review list with automatic updates, listing of the best reviews",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bolacha/review-syncer.git"
+  },
+  "keywords": [
+    "automated",
+    "review",
+    "reviewer",
+    "node",
+    "react",
+    "node-cron",
+    "redux",
+    "expressjs",
+    "express"
+  ],
+  "author": "Lucas Costa Oliveira",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bolacha/review-syncer/issues"
+  },
+  "homepage": "https://github.com/bolacha/review-syncer#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "mysql2": "^1.5.3",
+    "sequelize": "^4.38.0"
+  }
+}
