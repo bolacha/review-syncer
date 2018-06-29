@@ -3,6 +3,8 @@ const Request = require('request-promise');
 const Express = require('express');
 const Moment = require('moment');
 const Cors = require('cors');
+var Cron = require('node-cron');
+
 
 const App = Express();
 
@@ -76,50 +78,6 @@ const reviewBuilder = (data, app_slug) => {
 	return return_data;
 }
 
-const getReviews = (app_slug) => {
-	return new Promise((resolve, reject) => {
-
-		Request({
-		    method: 'GET',
-		    uri: `https://apps.shopify.com/${req.params.app_slug}/reviews.json`,
-		    json: true
-		}).then((parsed_body) => {
-			let reviews = parsed_body.reviews.map((parsed_review) => {
-				return reviewBuilder(parsed_review, req.params.app_slug);
-			});
-
-			for (let review of reviews) {
-
-				if(review === undefined || review.shopify_domain === undefined) continue;
-
-				const whereclause = {where: {app_slug: req.params.app_slug , shopify_domain: review.shopify_domain } , defaults: review};
-
-				Review.findOrCreate(whereclause)
-					.spread((stored_review, created) => {
-
-						let plain_data = stored_review.get({
-							plain: true
-						});
-
-						if(created === false && plain_data.star_rating !== review.star_rating ) {
-
-							// Keeping the old star rating
-							plain_data.previous_star_rating = review.star_rating;
-							// removing the created_at
-							if (review.created_at) delete review.created_at;
-
-							let object_assigned = Object.assign(plain_data, review);
-
-							object_assigned.updated_at = Moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
-
-							Review.update( object_assigned, whereclause ).then(console.log).catch(console.log);
-						}
-					});
-			}
-		}).then(resolve).catch(reject);
-	})
-}
-
 App.get('/shopify/:app_slug/reviews', (req, res) => {
 
 	Request({
@@ -160,8 +118,8 @@ App.get('/shopify/:app_slug/reviews', (req, res) => {
 				});
 		}
 
-		return true;
-	}).then();
+		res.send();
+	});
 });
 
 App.get('/api/:app_slug/reviews', (req, res) => {
@@ -174,12 +132,59 @@ App.get('/api/:app_slug/reviews', (req, res) => {
 		});
 });
 
-// sequelize.sync().then(() => {
-// 	Review.create({
-// 		shopify_domain: "Cookie",
-// 		app_slug: "Cookie"
-// 	}).then(console.log);	
-// });
+Cron.schedule('0,30 * * * *', function() {
+
+	console.log('Started Syncing');
+
+	let array_appslugs = ['product-upsell','product-discount','store-locator','product-options','quantity-breaks','product-bundles','customer-pricing','product-builder','social-triggers','recurring-orders','multi-currency','quickbooks-online','xero','the-bold-brain' ];
+
+	for(let appSlugs in array_appslugs) {
+
+		appSlugs = array_appslugs[appSlugs];
+
+		console.log(` Started Syncing for ${appSlugs}`);
+
+		Request({
+		    method: 'GET',
+		    uri: `https://apps.shopify.com/${appSlugs}/reviews.json`,
+		    json: true
+		}).then((parsed_body) => {
+			let reviews = parsed_body.reviews.map((parsed_review) => {
+				return reviewBuilder(parsed_review, appSlugs);
+			});
+
+			for (let review of reviews) {
+
+				if(review === undefined || review.shopify_domain === undefined) continue;
+
+				const whereclause = {where: {app_slug: appSlugs , shopify_domain: review.shopify_domain } , defaults: review};
+
+				Review.findOrCreate(whereclause)
+					.spread((stored_review, created) => {
+
+						let plain_data = stored_review.get({
+							plain: true
+						});
+
+						if(created === false && plain_data.star_rating !== review.star_rating ) {
+
+							// Keeping the old star rating
+							plain_data.previous_star_rating = review.star_rating;
+							// removing the created_at
+							if (review.created_at) delete review.created_at;
+
+							let object_assigned = Object.assign(plain_data, review);
+
+							object_assigned.updated_at = Moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
+
+							Review.update( object_assigned, whereclause ).then(console.log);
+						}
+					});
+			}
+		});
+	}
+});
+
 
 App.listen(3000, () => console.log('Example app listening on port 3000!'))
 
