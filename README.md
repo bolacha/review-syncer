@@ -11,10 +11,10 @@ https://apps.shopify.com/product-upsell/reviews.json
 ## Exercise
 
 We would like the following:
-- [ ] fetch app reviews from the Shopify public REST endpoint for a one or more of our applications *(see app names below)*
-- [ ] store the results in a database table *(see below)*
-- [ ] be able to handle updates to app reviews *(i.e. original review was 1 star, now 5 stars)*
-- [ ] run on a configurable interval *(i.e. every 30m or 60m)*
+- [X] fetch app reviews from the Shopify public REST endpoint for a one or more of our applications *(see app names below)*
+- [X] store the results in a database table *(see below)*
+- [X] be able to handle updates to app reviews *(i.e. original review was 1 star, now 5 stars)*
+- [X] run on a configurable interval *(i.e. every 30m or 60m)*
 - [ ] create a web UI that allows you to view and search app reviews (filter by app, sort by date)
 
 

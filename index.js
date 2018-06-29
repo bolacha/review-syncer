@@ -9,6 +9,7 @@ var Cron = require('node-cron');
 const App = Express();
 
 App.use(Cors());
+App.use(Express.static('client/build'));
 
 const sequelize = new Sequelize('mysql://root@localhost:3306/review_syncer', {
 	pool: {

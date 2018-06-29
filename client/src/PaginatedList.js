@@ -134,7 +134,7 @@ class PaginatedList extends React.Component {
   }
 
   getReviews(app_slug) {
-    fetch(`http://localhost:3000/api/${this.state.appslug}/reviews`).then((reviews) => {
+    fetch(`api/${this.state.appslug}/reviews`).then((reviews) => {
         return reviews.json();
     }).then((reviews) => {
         let localState = this.state;
